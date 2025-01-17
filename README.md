@@ -1,6 +1,12 @@
 # SPlayer
 
-> 一个简约的音乐播放器
+> A simple music player
+
+![Stars](https://img.shields.io/github/stars/imsyy/SPlayer?style=flat)
+![Version](https://img.shields.io/github/v/release/imsyy/SPlayer)
+[![Build Release](https://github.com/imsyy/SPlayer/actions/workflows/release.yml/badge.svg)](https://github.com/imsyy/SPlayer/actions/workflows/release.yml)
+![License](https://img.shields.io/github/license/imsyy/SPlayer)
+![Issues](https://img.shields.io/github/issues/imsyy/SPlayer)
 
 ![main](/screenshots/SPlayer.jpg)
 
@@ -116,6 +122,10 @@
 可以通过 `GitHub Actions` 工作流获取最新的开发版，目前开发版仅提供 `Win` 版本
 
 [Dev Workflow](https://github.com/imsyy/SPlayer/actions/workflows/build.yml)
+
+## Snap Store
+
+[![Get it from the Snap Store](https://snapcraft.io/en/dark/install.svg)](https://snapcraft.io/splayer)
 
 ## ⚙️ Docker 部署
 

@@ -1,5 +1,12 @@
 import { defineStore } from "pinia";
-import type { SongType, CoverType, UserDataType, UserLikeDataType, CatType } from "@/types/main";
+import type {
+  SongType,
+  CoverType,
+  UserDataType,
+  UserLikeDataType,
+  CatType,
+  LoginType,
+} from "@/types/main";
 import { playlistCatlist } from "@/api/playlist";
 import { cloneDeep, isEmpty } from "lodash-es";
 import { isLogin } from "@/utils/auth";
@@ -13,6 +20,7 @@ interface ListState {
   searchHistory: string[];
   localPlayList: CoverType[];
   userLoginStatus: boolean;
+  loginType: LoginType;
   userData: UserDataType;
   userLikeData: UserLikeDataType;
   likeSongsList: {
@@ -42,8 +50,7 @@ const userDB = localforage.createInstance({
   storeName: "user",
 });
 
-export const useDataStore = defineStore({
-  id: "data",
+export const useDataStore = defineStore("data", {
   state: (): ListState => ({
     // 播放列表
     playList: [],
@@ -55,8 +62,10 @@ export const useDataStore = defineStore({
     localPlayList: [],
     // 云盘歌单
     cloudPlayList: [],
-    // 用户状态
+    // 登录状态
     userLoginStatus: false,
+    // 登录方式
+    loginType: "qr",
     // 用户数据
     userData: {
       userId: 0,
@@ -150,15 +159,23 @@ export const useDataStore = defineStore({
     },
     // 新增下一首播放歌曲
     async setNextPlaySong(song: SongType, index: number): Promise<number> {
-      // 移除重复的歌曲（如果存在）
-      const playList = this.playList.filter((item) => item.id !== song.id);
+      // 若为空,则直接添加
+      if (this.playList.length === 0) {
+        this.playList = [song];
+        await musicDB.setItem("playList", cloneDeep(this.playList));
+        return 0;
+      }
+
       // 在当前播放位置之后插入歌曲
       const indexAdd = index + 1;
-      playList.splice(indexAdd, 0, song);
+      this.playList.splice(indexAdd, 0, song);
+      // 移除重复的歌曲（如果存在）
+      const playList = this.playList.filter((item, idx) => idx === indexAdd || item.id !== song.id);
       // 更新本地存储
       this.playList = playList;
       await musicDB.setItem("playList", cloneDeep(playList));
-      return indexAdd;
+      // 返回刚刚插入的歌曲索引
+      return playList.findIndex((item) => item.id === song.id);
     },
     // 更改播放历史
     async setHistory(song: SongType) {
@@ -229,6 +246,7 @@ export const useDataStore = defineStore({
     async clearUserData() {
       try {
         this.userLoginStatus = false;
+        this.loginType = "qr";
         this.userData = {
           userId: 0,
           userType: 0,
@@ -285,6 +303,6 @@ export const useDataStore = defineStore({
   persist: {
     key: "data-store",
     storage: localStorage,
-    paths: ["userLoginStatus", "userData", "searchHistory", "catData"],
+    pick: ["userLoginStatus", "loginType", "userData", "searchHistory", "catData"],
   },
 });

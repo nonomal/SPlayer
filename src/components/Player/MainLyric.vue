@@ -56,7 +56,7 @@
                   :key="textIndex"
                   :class="{
                     'content-text': true,
-                    'content-long': text.duration >= 1.5,
+                    'content-long': text.duration >= 1.5 && playSeek <= text.endTime,
                     'end-with-space': text.endsWithSpace,
                   }"
                 >
@@ -67,9 +67,9 @@
                 </div>
               </div>
               <!-- 翻译 -->
-              <span v-if="item.tran" class="tran">{{ item.tran }}</span>
+              <span v-if="item.tran && settingStore.showTran" class="tran">{{ item.tran }}</span>
               <!-- 音译 -->
-              <span v-if="item.roma" class="roma">{{ item.roma }}</span>
+              <span v-if="item.roma && settingStore.showRoma" class="roma">{{ item.roma }}</span>
               <!-- 倒计时 -->
               <div
                 v-if="
@@ -115,9 +115,9 @@
               <!-- 歌词 -->
               <span class="content">{{ item.content }}</span>
               <!-- 翻译 -->
-              <span v-if="item.tran" class="tran">{{ item.tran }}</span>
+              <span v-if="item.tran && settingStore.showTran" class="tran">{{ item.tran }}</span>
               <!-- 音译 -->
-              <span v-if="item.roma" class="roma">{{ item.roma }}</span>
+              <span v-if="item.roma && settingStore.showRoma" class="roma">{{ item.roma }}</span>
             </div>
             <div class="placeholder" />
           </template>
@@ -149,8 +149,8 @@
 import type { LyricContentType } from "@/types/main";
 import { NScrollbar } from "naive-ui";
 import { useMusicStore, useSettingStore, useStatusStore } from "@/stores";
-import player from "@/utils/player";
 import { openSetting } from "@/utils/modal";
+import player from "@/utils/player";
 
 const musicStore = useMusicStore();
 const statusStore = useStatusStore();
@@ -364,7 +364,11 @@ onBeforeUnmount(() => {
           );
           -webkit-mask-size: 220% 100%;
           -webkit-mask-repeat: no-repeat;
-          transition: opacity 0.3s !important;
+          transition:
+            opacity 0.3s,
+            filter 0.5s,
+            margin 0.3s,
+            padding 0.3s !important;
         }
         &.end-with-space {
           margin-right: 12px;
@@ -567,8 +571,10 @@ onBeforeUnmount(() => {
       }
     }
   }
-  &.record,
   &.pure {
+    :deep(.n-scrollbar-content) {
+      padding: 0 80px;
+    }
     .lyric-content {
       .placeholder {
         &:first-child {
@@ -582,11 +588,6 @@ onBeforeUnmount(() => {
           transform: scale(0.9);
         }
       }
-    }
-  }
-  &.pure {
-    :deep(.n-scrollbar-content) {
-      padding: 0 80px;
     }
   }
   &:hover {

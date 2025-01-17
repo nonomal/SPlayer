@@ -60,7 +60,7 @@ export default defineConfig(({ command, mode }) => {
           ],
           eslintrc: {
             enabled: true,
-            filepath: "./.eslintrc-auto-import.json",
+            filepath: "./auto-eslint.mjs",
           },
         }),
         Components({
@@ -72,6 +72,13 @@ export default defineConfig(({ command, mode }) => {
       resolve: {
         alias: {
           "@": resolve(__dirname, "src/"),
+        },
+      },
+      css: {
+        preprocessorOptions: {
+          scss: {
+            silenceDeprecations: ["legacy-js-api"],
+          },
         },
       },
       server: {

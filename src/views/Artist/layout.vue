@@ -26,7 +26,7 @@
           />
         </div>
         <div class="data">
-          <div class="name">
+          <div class="name text-hidden">
             <n-text class="name-text">{{ artistDetailData.name || "未知艺术家" }}</n-text>
             <n-text v-if="artistDetailData?.alia" class="name-alias" depth="3">
               {{ artistDetailData.alia || "未知艺术家" }}
@@ -89,7 +89,13 @@
                 </template>
                 播放
               </n-button>
-              <n-button :focusable="false" strong secondary round>
+              <n-button
+                :focusable="false"
+                strong
+                secondary
+                round
+                @click="toLikeArtist(artistId, !isLikeArtist)"
+              >
                 <template #icon>
                   <SvgIcon :name="isLikeArtist ? 'Favorite' : 'FavoriteBorder'" />
                 </template>
@@ -123,7 +129,7 @@
     <!-- 路由 -->
     <RouterView v-slot="{ Component }">
       <Transition :name="`router-${settingStore.routeAnimation}`" mode="out-in">
-        <KeepAlive>
+        <KeepAlive v-if="settingStore.useKeepAlive">
           <component
             ref="componentRef"
             :is="Component"
@@ -132,6 +138,14 @@
             @scroll="listScroll"
           />
         </KeepAlive>
+        <component
+          v-else
+          ref="componentRef"
+          :is="Component"
+          :id="artistId"
+          class="router-view"
+          @scroll="listScroll"
+        />
       </Transition>
     </RouterView>
   </div>
@@ -145,6 +159,7 @@ import { renderToolbar } from "@/utils/meta";
 import { artistDetail } from "@/api/artist";
 import { formatArtistsList } from "@/utils/format";
 import { useDataStore, useSettingStore } from "@/stores";
+import { toLikeArtist } from "@/utils/auth";
 import ArtistSongs from "./songs.vue";
 
 const router = useRouter();

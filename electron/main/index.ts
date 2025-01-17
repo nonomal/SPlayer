@@ -1,15 +1,16 @@
 import { app, shell, BrowserWindow, BrowserWindowConstructorOptions } from "electron";
-import { electronApp, optimizer } from "@electron-toolkit/utils";
+import { electronApp } from "@electron-toolkit/utils";
 import { join } from "path";
-import { release } from "os";
+import { release, type } from "os";
 import { isDev, isMac, appName } from "./utils";
-import { registerAllShortcuts, unregisterShortcuts } from "./shortcut";
+import { unregisterShortcuts } from "./shortcut";
 import { initTray, MainTray } from "./tray";
 import { initThumbar, Thumbar } from "./thumbar";
+import { type StoreType, initStore } from "./store";
+import Store from "electron-store";
 import initAppServer from "../server";
 import initIpcMain from "./ipcMain";
 import log from "./logger";
-import store from "./store";
 // icon
 import icon from "../../public/icons/favicon.png?asset";
 
@@ -29,6 +30,8 @@ class MainProcess {
   mainWindow: BrowserWindow | null = null;
   lyricWindow: BrowserWindow | null = null;
   loadingWindow: BrowserWindow | null = null;
+  // store
+  store: Store<StoreType> | null = null;
   // 托盘
   mainTray: MainTray | null = null;
   // 工具栏
@@ -38,7 +41,7 @@ class MainProcess {
   constructor() {
     log.info("🚀 Main process startup");
     // 禁用 Windows 7 的 GPU 加速功能
-    if (release().startsWith("6.1")) app.disableHardwareAcceleration();
+    if (release().startsWith("6.1") && type() == "Windows_NT") app.disableHardwareAcceleration();
     // 单例锁
     if (!app.requestSingleInstanceLock()) {
       log.error("❌ There is already a program running and this process is terminated");
@@ -46,10 +49,12 @@ class MainProcess {
       process.exit(0);
     } else this.showWindow();
     // 准备就绪
-    app.whenReady().then(async () => {
+    app.on("ready", async () => {
       log.info("🚀 Application Process Startup");
       // 设置应用程序名称
-      electronApp.setAppUserModelId(app.getName());
+      electronApp.setAppUserModelId("com.imsyy.splayer");
+      // 初始化 store
+      this.store = initStore();
       // 启动主服务进程
       await initAppServer();
       // 启动进程
@@ -68,10 +73,8 @@ class MainProcess {
         this.loadingWindow,
         this.mainTray,
         this.thumbar,
-        store,
+        this.store,
       );
-      // 注册快捷键
-      registerAllShortcuts(this.mainWindow!);
     });
   }
   // 创建窗口
@@ -111,8 +114,8 @@ class MainProcess {
   createMainWindow() {
     // 窗口配置项
     const options: BrowserWindowConstructorOptions = {
-      width: store.get("window").width,
-      height: store.get("window").height,
+      width: this.store?.get("window").width,
+      height: this.store?.get("window").height,
       minHeight: 800,
       minWidth: 1280,
       // 菜单栏
@@ -132,8 +135,8 @@ class MainProcess {
     }
 
     // 配置网络代理
-    if (store.get("proxy")) {
-      this.mainWindow.webContents.session.setProxy({ proxyRules: store.get("proxy") });
+    if (this.store?.get("proxy")) {
+      this.mainWindow.webContents.session.setProxy({ proxyRules: this.store?.get("proxy") });
     }
 
     // 窗口打开处理程序
@@ -162,15 +165,15 @@ class MainProcess {
   createLyricsWindow() {
     // 初始化窗口
     this.lyricWindow = this.createWindow({
-      width: store.get("lyric").width || 800,
-      height: store.get("lyric").height || 180,
+      width: this.store?.get("lyric").width || 800,
+      height: this.store?.get("lyric").height || 180,
       minWidth: 440,
       minHeight: 120,
       maxWidth: 1600,
       maxHeight: 300,
       // 窗口位置
-      x: store.get("lyric").x,
-      y: store.get("lyric").y,
+      x: this.store?.get("lyric").x,
+      y: this.store?.get("lyric").y,
       transparent: true,
       backgroundColor: "rgba(0, 0, 0, 0)",
       alwaysOnTop: true,
@@ -213,11 +216,6 @@ class MainProcess {
       this.showWindow();
     });
 
-    // 开发环境控制台
-    app.on("browser-window-created", (_, window) => {
-      optimizer.watchWindowShortcuts(window);
-    });
-
     // 自定义协议
     app.on("open-url", (_, url) => {
       console.log("Received custom protocol URL:", url);
@@ -236,6 +234,10 @@ class MainProcess {
   }
   // 窗口事件
   handleWindowEvents() {
+    this.mainWindow?.on("ready-to-show", () => {
+      if (!this.mainWindow) return;
+      this.thumbar = initThumbar(this.mainWindow);
+    });
     this.mainWindow?.on("show", () => {
       // this.mainWindow?.webContents.send("lyricsScroll");
     });
@@ -257,7 +259,7 @@ class MainProcess {
       const bounds = this.lyricWindow?.getBounds();
       if (bounds) {
         const { width, height } = bounds;
-        store.set("lyric", { ...store.get("lyric"), width, height });
+        this.store?.set("lyric", { ...this.store?.get("lyric"), width, height });
       }
     });
 
@@ -275,7 +277,7 @@ class MainProcess {
   saveBounds() {
     if (this.mainWindow?.isFullScreen()) return;
     const bounds = this.mainWindow?.getBounds();
-    if (bounds) store.set("window", bounds);
+    if (bounds) this.store?.set("window", bounds);
   }
   // 显示窗口
   showWindow() {

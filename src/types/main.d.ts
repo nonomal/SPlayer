@@ -1,5 +1,4 @@
-import { sortOptions } from "@/utils/helper";
-import { songLevelData } from "@/utils/meta";
+import { songLevelData, sortOptions } from "@/utils/meta";
 
 export type MetaData = {
   id: number;
@@ -212,6 +211,7 @@ export type UpdateLogType = {
   changelog: string;
   time: number;
   url: string;
+  prerelease: boolean;
   force?: boolean;
 };
 
@@ -232,4 +232,8 @@ interface UpdateInfoType {
   releaseDate: string;
   releaseName: string;
   releaseNotes: string;
+  prerelease: boolean;
 }
+
+// 登录方式
+export type LoginType = "qr" | "phone" | "cookie" | "uid";

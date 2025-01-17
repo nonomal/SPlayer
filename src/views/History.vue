@@ -39,7 +39,6 @@
         v-if="dataStore.historyList.length > 0"
         :data="dataStore.historyList"
         :loading="true"
-        hiddenPadding
         hiddenCover
         hiddenSize
       />
@@ -103,7 +102,7 @@ const cleanHistory = () => {
   }
   .menu {
     width: 100%;
-    margin-bottom: 20px;
+    margin-bottom: 12px;
     .n-button {
       height: 40px;
       transition: all 0.3s var(--n-bezier);

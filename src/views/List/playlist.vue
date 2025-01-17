@@ -138,7 +138,14 @@
                 </template>
                 编辑歌单
               </n-button>
-              <n-button v-else :focusable="false" strong secondary round>
+              <n-button
+                v-else
+                :focusable="false"
+                strong
+                secondary
+                round
+                @click="toLikePlaylist(playlistId, !isLikePlaylist)"
+              >
                 <template #icon>
                   <SvgIcon :name="isLikePlaylist ? 'Favorite' : 'FavoriteBorder'" />
                 </template>
@@ -187,8 +194,8 @@
         :loading="loading"
         :height="songListHeight"
         :playListId="playlistId"
-        hidden-padding
         @scroll="listScroll"
+        @removeSong="removeSong"
       />
       <n-empty
         v-else
@@ -208,16 +215,21 @@
 import type { CoverType, SongType } from "@/types/main";
 import type { DropdownOption, MessageReactive } from "naive-ui";
 import { songDetail } from "@/api/song";
-import { playlistDetail, playlistAllSongs, deletePlaylist } from "@/api/playlist";
+import {
+  playlistDetail,
+  playlistAllSongs,
+  deletePlaylist,
+  updatePlaylistPrivacy,
+} from "@/api/playlist";
 import { formatCoverList, formatSongsList } from "@/utils/format";
 import { coverLoaded, formatNumber, fuzzySearch, renderIcon } from "@/utils/helper";
 import { renderToolbar } from "@/utils/meta";
-import { isLogin, updateUserLikePlaylist } from "@/utils/auth";
+import { isLogin, toLikePlaylist, updateUserLikePlaylist } from "@/utils/auth";
 import { debounce } from "lodash-es";
 import { useDataStore, useStatusStore } from "@/stores";
 import { openBatchList, openUpdatePlaylist } from "@/utils/modal";
-import player from "@/utils/player";
 import { formatTimestamp } from "@/utils/time";
+import player from "@/utils/player";
 
 const router = useRouter();
 const dataStore = useDataStore();
@@ -276,6 +288,7 @@ const moreOptions = computed<DropdownOption[]>(() => [
     label: "公开隐私歌单",
     key: "privacy",
     show: playlistDetailData.value?.privacy === 10,
+    props: { onClick: openPrivacy },
     icon: renderIcon("ListLockOpen"),
   },
   {
@@ -291,7 +304,12 @@ const moreOptions = computed<DropdownOption[]>(() => [
     label: "批量操作",
     key: "batch",
     props: {
-      onClick: () => openBatchList(playlistDataShow.value, false),
+      onClick: () =>
+        openBatchList(
+          playlistDataShow.value,
+          false,
+          isUserPlaylist.value ? playlistId.value : undefined,
+        ),
     },
     icon: renderIcon("Batch"),
   },
@@ -343,21 +361,24 @@ const handleLocalPlaylist = (id: number) => {
 
 // 获取在线歌单
 const handleOnlinePlaylist = async (id: number, getList: boolean, refresh: boolean) => {
+  console.log(id, getList, refresh);
+
   // 获取歌单详情
   const detail = await playlistDetail(id);
   playlistDetailData.value = formatCoverList(detail.playlist)[0];
+  const count = playlistDetailData.value?.count || 0;
   // 不需要获取列表或无歌曲
-  if (!getList || playlistDetailData.value.count === 0) {
+  if (!getList || count === 0) {
     loading.value = false;
     return;
   }
   // 如果已登录且歌曲数量少于 800，直接加载所有歌曲
-  if (isLogin() && (playlistDetailData.value?.count as number) < 800) {
-    const ids: number[] = detail.privileges.map((song: any) => song.id as number);
+  if (isLogin() === 1 && count === detail.privileges?.length && count < 800) {
+    const ids = detail.privileges.map((song: any) => song.id as number);
     const result = await songDetail(ids);
     playlistData.value = formatSongsList(result.songs);
   } else {
-    await getPlaylistAllSongs(id, playlistDetailData.value.count || 0, refresh);
+    await getPlaylistAllSongs(id, count, refresh);
   }
   loading.value = false;
 };
@@ -371,7 +392,7 @@ const getPlaylistAllSongs = async (
 ) => {
   loading.value = true;
   // 加载提示
-  loadingMsgShow(!refresh);
+  loadingMsgShow(!refresh, count);
   // 循环获取
   let offset: number = 0;
   const limit: number = 500;
@@ -403,15 +424,15 @@ const clearInput = () => {
 };
 
 // 加载提示
-const loadingMsgShow = (show: boolean = true) => {
+const loadingMsgShow = (show: boolean = true, count?: number) => {
   if (show) {
+    if (count && count <= 800) return;
     loadingMsg.value?.destroy();
     loadingMsg.value = window.$message.loading("该歌单歌曲数量过多，请稍等", {
       duration: 0,
       closable: true,
     });
   } else {
-    loading.value = false;
     loadingMsg.value?.destroy();
     loadingMsg.value = null;
   }
@@ -454,12 +475,35 @@ const toDeletePlaylist = async () => {
   });
 };
 
+// 删除指定索引歌曲
+const removeSong = (ids: number[]) => {
+  if (!playlistData.value) return;
+  playlistData.value = playlistData.value.filter((song) => !ids.includes(song.id));
+};
+
 // 编辑歌单
 const updatePlaylist = () => {
   if (!playlistDetailData.value || !playlistId.value) return;
   openUpdatePlaylist(playlistId.value, playlistDetailData.value, () =>
     getPlaylistDetail(playlistId.value, { getList: false, refresh: false }),
   );
+};
+
+// 公开隐私歌单
+const openPrivacy = async () => {
+  if (playlistDetailData.value?.privacy !== 10) return;
+  window.$dialog.warning({
+    title: "公开隐私歌单",
+    content: "确认公开这个歌单？该操作无法撤销！",
+    positiveText: "公开",
+    negativeText: "取消",
+    onPositiveClick: async () => {
+      const result = await updatePlaylistPrivacy(playlistId.value);
+      if (result.code !== 200) return;
+      if (playlistDetailData.value) playlistDetailData.value.privacy = 0;
+      window.$message.success("歌单公开成功");
+    },
+  });
 };
 
 onBeforeRouteUpdate((to) => {

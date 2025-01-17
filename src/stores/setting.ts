@@ -1,4 +1,5 @@
 import { defineStore } from "pinia";
+import { keywords } from "@/assets/data/exclude";
 
 interface SettingState {
   themeMode: "light" | "dark" | "auto";
@@ -81,10 +82,14 @@ interface SettingState {
   useRealIP: boolean;
   realIP: string;
   fullPlayerCache: boolean;
+  scrobbleSong: boolean;
+  dynamicCover: boolean;
+  useKeepAlive: boolean;
+  excludeKeywords: string[];
+  showDefaultLocalPath: boolean;
 }
 
-export const useSettingStore = defineStore({
-  id: "setting",
+export const useSettingStore = defineStore("setting", {
   state: (): SettingState => ({
     // 个性化
     themeMode: "auto", // 明暗模式
@@ -106,6 +111,7 @@ export const useSettingStore = defineStore({
     checkUpdateOnStart: true, // 启动时检查更新
     preventSleep: false, // 是否禁止休眠
     fullPlayerCache: false, // 全屏播放器缓存
+    useKeepAlive: true, // 使用 keep-alive
     // 播放
     songLevel: "exhigh", // 音质
     playDevice: "default", // 播放设备
@@ -123,6 +129,8 @@ export const useSettingStore = defineStore({
     smtcOpen: true, // 是否开启 SMTC
     smtcOutputHighQualityCover: false, // 是否输出高清封面
     playSongDemo: false, // 是否播放试听歌曲
+    scrobbleSong: false, // 是否打卡
+    dynamicCover: true, // 动态封面
     // 歌词
     lyricFontSize: 46, // 歌词大小
     lyricTranFontSize: 22, // 歌词翻译大小
@@ -138,8 +146,10 @@ export const useSettingStore = defineStore({
     lyricsBlur: false, // 歌词模糊
     lyricsScrollPosition: "start", // 歌词滚动位置
     lrcMousePause: false, // 鼠标悬停暂停
+    excludeKeywords: keywords, // 排除歌词关键字
     // 本地
     localFilesPath: [],
+    showDefaultLocalPath: true, // 显示默认本地路径
     localSeparators: ["/", "&"],
     showLocalCover: true,
     // 下载
@@ -161,11 +171,13 @@ export const useSettingStore = defineStore({
     setThemeMode(mode?: "auto" | "light" | "dark") {
       // 若未传入
       if (mode === undefined) {
-        this.themeMode === "auto"
-          ? (this.themeMode = "light")
-          : this.themeMode === "light"
-            ? (this.themeMode = "dark")
-            : (this.themeMode = "auto");
+        if (this.themeMode === "auto") {
+          this.themeMode = "light";
+        } else if (this.themeMode === "light") {
+          this.themeMode = "dark";
+        } else {
+          this.themeMode = "auto";
+        }
       } else {
         this.themeMode = mode;
       }
